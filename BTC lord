@@ -1,0 +1,76 @@
+// @version=5
+indicator("ALPHA CORE Base [V1] - Smart Money Trading Suite", overlay = true, max_lines_count = 500, max_labels_count = 500)
+
+// ========== SETTINGS ==========
+showOrderBlocks = input.bool(true, "Show MTF Order Blocks")
+showFVGs = input.bool(true, "Show Fair Value Gaps")
+showChoch = input.bool(true, "Show Change of Character")
+showLiquidityZones = input.bool(true, "Show Liquidity Zones")
+showEntrySignals = input.bool(true, "Show Entry Models (Engulfing, Inside Bar, Break & Retest)")
+showMitigationZones = input.bool(true, "Show Mitigation Zones")
+showSwingHL = input.bool(true, "Show Swing Highs/Lows")
+showTrendlines = input.bool(true, "Show Trendlines")
+useRSIFilter = input.bool(false, "Enable RSI Filter")
+useVolumeFilter = input.bool(false, "Enable Volume Filter")
+
+// ========== UTILITY ==========
+isBullishEngulfing() =>
+    close[1] < open[1] and close > open and close > open[1] and open <= close[1]
+
+isBearishEngulfing() =>
+    close[1] > open[1] and close < open and close < open[1] and open >= close[1]
+
+// ========== CHANGE OF CHARACTER (CHoCH) ==========
+var float prevHigh = na
+var float prevLow = na
+chochUp = ta.crossover(high, prevHigh)
+chochDown = ta.crossunder(low, prevLow)
+plotshape(showChoch and chochUp, style=shape.labelup, location=location.belowbar, color=color.green, text="CHoCH↑")
+plotshape(showChoch and chochDown, style=shape.labeldown, location=location.abovebar, color=color.red, text="CHoCH↓")
+prevHigh := high
+prevLow := low
+
+// ========== ORDER BLOCKS ==========
+bullOB = low[1] < low and close[1] < open[1] and close > open
+bearOB = high[1] > high and close[1] > open[1] and close < open
+plotshape(showOrderBlocks and bullOB, style=shape.triangleup, location=location.belowbar, color=color.green, size=size.tiny)
+plotshape(showOrderBlocks and bearOB, style=shape.triangledown, location=location.abovebar, color=color.red, size=size.tiny)
+
+// ========== FAIR VALUE GAPS ==========
+gapUp = low > high[2]
+gapDown = high < low[2]
+plotshape(showFVGs and gapUp, style=shape.triangleup, location=location.belowbar, color=color.aqua, size=size.tiny)
+plotshape(showFVGs and gapDown, style=shape.triangledown, location=location.abovebar, color=color.fuchsia, size=size.tiny)
+
+// ========== SWING HIGH/LOW ==========
+swingHigh = high > high[1] and high > high[2]
+swingLow = low < low[1] and low < low[2]
+plotshape(showSwingHL and swingHigh, style=shape.labeldown, location=location.abovebar, color=color.orange, text="SH")
+plotshape(showSwingHL and swingLow, style=shape.labelup, location=location.belowbar, color=color.orange, text="SL")
+
+// ========== LIQUIDITY ZONES ==========
+liquidityAbove = ta.highest(high, 20)
+liquidityBelow = ta.lowest(low, 20)
+line.new(bar_index[20], liquidityAbove, bar_index, liquidityAbove, color=color.red, extend=extend.right, width=1, style=line.dashed)
+line.new(bar_index[20], liquidityBelow, bar_index, liquidityBelow, color=color.green, extend=extend.right, width=1, style=line.dashed)
+
+// ========== ENTRY SIGNALS ==========
+bullEntry = isBullishEngulfing()
+bearEntry = isBearishEngulfing()
+plotshape(showEntrySignals and bullEntry, title="Bull Entry", location=location.belowbar, color=color.green, style=shape.circle, size=size.small)
+plotshape(showEntrySignals and bearEntry, title="Bear Entry", location=location.abovebar, color=color.red, style=shape.circle, size=size.small)
+
+// ========== RSI + Volume FILTER ==========
+rsi = ta.rsi(close, 14)
+vol = volume
+passRSI = not useRSIFilter or (rsi > 50)
+passVolume = not useVolumeFilter or (vol > ta.sma(volume, 14))
+
+// ========== FINAL SIGNAL ==========
+finalBuy = bullEntry and passRSI and passVolume
+finalSell = bearEntry and passRSI and passVolume
+plotshape(finalBuy, style=shape.labelup, location=location.belowbar, color=color.lime, text="BUY")
+plotshape(finalSell, style=shape.labeldown, location=location.abovebar, color=color.red, text="SELL")
+
+// ========== LABEL ==========
+label.new(bar_index, high, "ALPHA CORE Base [V1]", style=label.style_label_left, color=color.new(color.black, 85), textcolor=color.white)
